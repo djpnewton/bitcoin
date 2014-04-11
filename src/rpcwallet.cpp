@@ -727,6 +727,47 @@ Value movecmd(const Array& params, bool fHelp)
     return true;
 }
 
+Value zapwallettx(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "zapwallettx txid [rescan=true]\n"
+            "\nRemove a wallet transaction.\n"
+            "\nArguments:\n"
+            "1. txid           (string) The transaction id.\n"
+            "2. rescan         (boolean) If true rescan the blockchain for missing transactions.\n"
+            "\nResult\n"
+            "true|false        (boolean) Returns true if successful\n"
+            "\nExamples:\n"
+            + HelpExampleCli("zapwallettx", "00e3c3ec61422aa4e597beceac7f06c771a8024dee38c5ffa413336341befa72")
+            + HelpExampleRpc("zapwallettx", "00e3c3ec61422aa4e597beceac7f06c771a8024dee38c5ffa413336341befa72")
+        );
+
+    // txid
+    uint256 hash;
+    hash.SetHex(params[0].get_str());
+
+    // Whether to perform rescan after tx removal
+    bool fRescan = true;
+    if (params.size() > 1)
+        fRescan = params[1].get_bool();
+
+    if (!pwalletMain->mapWallet.count(hash))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid or non-wallet transaction id");
+    const CWalletTx& wtx = pwalletMain->mapWallet[hash];
+
+    if (pwalletMain->ZapWalletTx(wtx) != DB_LOAD_OK)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error zapping tx from wallet");
+
+    if (fRescan)
+    {
+        pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
+        pwalletMain->ReacceptWalletTransactions();
+    }
+
+    return true;
+}
+
 
 Value sendfrom(const Array& params, bool fHelp)
 {
@@ -1887,5 +1928,37 @@ Value settxfee(const Array& params, bool fHelp)
     nTransactionFee = nAmount;
     return true;
 }
+
+Value getwalletinfo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getwalletinfo\n"
+            "Returns an object containing various wallet state info.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"walletversion\": xxxxx,     (numeric) the wallet version\n"
+            "  \"balance\": xxxxxxx,         (numeric) the total bitcoin balance of the wallet\n"
+            "  \"txcount\": xxxxxxx,         (numeric) the total number of transactions in the wallet\n"
+            "  \"keypoololdest\": xxxxxx,    (numeric) the timestamp (seconds since GMT epoch) of the oldest pre-generated key in the key pool\n"
+            "  \"keypoolsize\": xxxx,        (numeric) how many new keys are pre-generated\n"
+            "  \"unlocked_until\": ttt,      (numeric) the timestamp in seconds since epoch (midnight Jan 1 1970 GMT) that the wallet is unlocked for transfers, or 0 if the wallet is locked\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getwalletinfo", "")
+            + HelpExampleRpc("getwalletinfo", "")
+        );
+
+    Object obj;
+    obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
+    obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
+    obj.push_back(Pair("txcount",       (int)pwalletMain->mapWallet.size()));
+    obj.push_back(Pair("keypoololdest", (boost::int64_t)pwalletMain->GetOldestKeyPoolTime()));
+    obj.push_back(Pair("keypoolsize",   (int)pwalletMain->GetKeyPoolSize()));
+    if (pwalletMain->IsCrypted())
+        obj.push_back(Pair("unlocked_until", (boost::int64_t)nWalletUnlockTime));
+    return obj;
+}
+
 
 
