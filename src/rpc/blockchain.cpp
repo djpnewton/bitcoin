@@ -630,7 +630,6 @@ struct CCoinsStats
     uint256 hashSerialized;
     CAmount nTotalAmount;
 
-    CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nSerializedSize(0), nTotalAmount(0) {}
     CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nAddresses(0), nAddressesOutputs(0), nSerializedSize(0), nTotalAmount(0) {}
 };
 
@@ -812,7 +811,7 @@ UniValue gettxout(const UniValue& params, bool fHelp)
     return ret;
 }
 
-Value gettxoutsbyaddress(const Array& params, bool fHelp)
+UniValue gettxoutsbyaddress(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 4)
         throw runtime_error(
@@ -867,12 +866,12 @@ Value gettxoutsbyaddress(const Array& params, bool fHelp)
     if (!fTxOutsByAddressIndex)
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "To use this function, you must start bitcoin with the -txoutsbyaddressindex parameter.");
 
-    RPCTypeCheck(params, boost::assign::list_of(int_type)(array_type)(int_type)(int_type));
+    RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM)(UniValue::VARR)(UniValue::VNUM)(UniValue::VNUM));
 
-    vector<Object> vObjects;
+    UniValue vObjects(UniValue::VARR);
     vector<pair<int, unsigned int> > vSort;
     int nMinDepth = params[0].get_int();
-    Array inputs = params[1].get_array();
+    UniValue inputs = params[1].get_array();
 
     int nCount = 999999999;
     if (params.size() > 2)
@@ -888,7 +887,8 @@ Value gettxoutsbyaddress(const Array& params, bool fHelp)
     if (nFrom < 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative from");
 
-    BOOST_FOREACH(Value& input, inputs) {
+    for (unsigned int idx = 0; idx < inputs.size(); idx++) {
+        const UniValue& input = inputs[idx];
         CScript script;
         CBitcoinAddress address(input.get_str());
         if (address.IsValid()) {
@@ -935,10 +935,10 @@ Value gettxoutsbyaddress(const Array& params, bool fHelp)
                 if (nConfirmations < nMinDepth)
                     continue;
 
-                Object oScriptPubKey;
+                UniValue oScriptPubKey(UniValue::VOBJ);
                 ScriptPubKeyToJSON(coins.vout[outpoint.n].scriptPubKey, oScriptPubKey, true);
 
-                Object o;
+                UniValue o(UniValue::VOBJ);
                 o.push_back(Pair("confirmations", nConfirmations));
                 o.push_back(Pair("txid", outpoint.hash.GetHex()));
                 o.push_back(Pair("vout", (int)outpoint.n));
@@ -961,7 +961,7 @@ Value gettxoutsbyaddress(const Array& params, bool fHelp)
         }
     }
 
-    Array results;
+    UniValue results(UniValue::VARR);
     sort(vSort.begin(), vSort.end());
     for (unsigned int i = (unsigned int)nFrom; i < vSort.size(); i++)
     {
