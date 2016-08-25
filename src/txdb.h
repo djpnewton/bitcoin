@@ -79,6 +79,7 @@ public:
     bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock);
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
+    int64_t GetPrefixCount(char prefix) const;
     bool DeleteAllCoinsByScript();   // removes txoutsbyaddressindex
     bool GenerateAllCoinsByScript(); // creates txoutsbyaddressindex
     void SetCoinsViewByScript(CCoinsViewByScript* pcoinsViewByScriptIn);

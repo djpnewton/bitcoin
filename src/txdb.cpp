@@ -75,7 +75,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) {
     if (pcoinsViewByScript) // only if -txoutsbyaddressindex
     {
         for (CCoinsMapByScript::iterator it = pcoinsViewByScript->cacheCoinsByScript.begin(); it != pcoinsViewByScript->cacheCoinsByScript.end();) {
-            if (coins.IsEmpty())
+            if (it->second.IsEmpty())
                 batch.Erase(make_pair('d', it->first));
             else
                 batch.Write(make_pair('d', it->first), it->second);
@@ -170,35 +170,61 @@ void CCoinsViewDBCursor::Next()
         keyTmp.first = 0; // Invalidate cached key after last record so that Valid() and GetKey() return false
 }
 
+int64_t CCoinsViewDB::GetPrefixCount(char prefix) const
+{
+    boost::scoped_ptr<CDBIterator> pcursor(const_cast<CDBWrapper*>(&db)->NewIterator());
+    pcursor->Seek(prefix);
+
+    int64_t i = 0;
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        try {
+            char key;
+            if (!pcursor->GetKey(key) || key != prefix)
+                break;
+            i++;
+            pcursor->Next();
+        } catch (std::exception &e) {
+            return 0;
+        }
+    }
+    return i;
+}
+
 bool CCoinsViewDB::DeleteAllCoinsByScript()
 {
-    boost::scoped_ptr<leveldb::Iterator> pcursor(const_cast<CLevelDBWrapper*>(&db)->NewIterator());
-    CDataStream ssKeySet(SER_DISK, CLIENT_VERSION);
-    ssKeySet << 'd';
-    pcursor->Seek(ssKeySet.str());
+    boost::scoped_ptr<CDBIterator> pcursor(const_cast<CDBWrapper*>(&db)->NewIterator());
+    pcursor->Seek('d');
 
     std::vector<uint160> v;
     int64_t i = 0;
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         try {
+            /* old
             leveldb::Slice slKey = pcursor->key();
             CDataStream ssKey(slKey.data(), slKey.data()+slKey.size(), SER_DISK, CLIENT_VERSION);
             char chType;
             ssKey >> chType;
             if (chType != 'd')
                 break;
+            */
+            std::pair<char, uint160> key;
+            if (!pcursor->GetKey(key) || key.first != 'd')
+                break;
 
+            /* old
             uint160 scripthash;
-            ssKey >> scripthash;
+            ssKey >> scripthash;            
             v.push_back(scripthash);
+            */
+            v.push_back(key.second);
             if (v.size() >= 10000)
             {
                 i += v.size();
-                CLevelDBBatch batch;
-                CCoinsByScript empty;
+                CDBBatch batch(db);
                 BOOST_FOREACH(const uint160& hash, v)
-                    BatchWriteCoins(batch, hash, empty); // delete
+                    batch.Erase(make_pair('d', hash)); // delete
                 db.WriteBatch(batch);
                 v.clear();
             }
@@ -211,10 +237,9 @@ bool CCoinsViewDB::DeleteAllCoinsByScript()
     if (!v.empty())
     {
         i += v.size();
-        CLevelDBBatch batch;
-        CCoinsByScript empty;
+        CDBBatch batch(db);
         BOOST_FOREACH(const uint160& hash, v)
-            BatchWriteCoins(batch, hash, empty); // delete
+            batch.Erase(make_pair('d', hash)); // delete
         db.WriteBatch(batch);
     }
     if (i > 0)
@@ -228,10 +253,8 @@ bool CCoinsViewDB::GenerateAllCoinsByScript()
     LogPrintf("Building address index for -txoutsbyaddressindex. Be patient...\n");
     int64_t nTxCount = GetPrefixCount('c');
 
-    boost::scoped_ptr<leveldb::Iterator> pcursor(const_cast<CLevelDBWrapper*>(&db)->NewIterator());
-    CDataStream ssKeySet(SER_DISK, CLIENT_VERSION);
-    ssKeySet << 'c';
-    pcursor->Seek(ssKeySet.str());
+    boost::scoped_ptr<CDBIterator> pcursor(const_cast<CDBWrapper*>(&db)->NewIterator());
+    pcursor->Seek('c');
 
     CCoinsMapByScript mapCoinsByScript;
     int64_t i = 0;
@@ -239,23 +262,17 @@ bool CCoinsViewDB::GenerateAllCoinsByScript()
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         try {
-            leveldb::Slice slKey = pcursor->key();
-            CDataStream ssKey(slKey.data(), slKey.data()+slKey.size(), SER_DISK, CLIENT_VERSION);
-            char chType;
-            ssKey >> chType;
-            if (chType != 'c')
-                break;
-
             if (progress % 1000 == 0 && nTxCount > 0)
                 uiInterface.ShowProgress(_("Building address index..."), (int)(((double)progress / (double)nTxCount) * (double)100));
             progress++;
 
-            leveldb::Slice slValue = pcursor->value();
-            CDataStream ssValue(slValue.data(), slValue.data()+slValue.size(), SER_DISK, CLIENT_VERSION);
+            std::pair<char, uint256> key;
             CCoins coins;
-            ssValue >> coins;
-            uint256 txhash;
-            ssKey >> txhash;
+            if (!pcursor->GetKey(key) || key.first != 'c')
+                break;
+            uint256 txhash = key.second;
+            if (!pcursor->GetValue(coins))
+                break;
 
             for (unsigned int j = 0; j < coins.vout.size(); j++)
             {
@@ -275,9 +292,13 @@ bool CCoinsViewDB::GenerateAllCoinsByScript()
 
             if (mapCoinsByScript.size() >= 10000)
             {
-                CLevelDBBatch batch;
+                CDBBatch batch(db);
                 for (CCoinsMapByScript::iterator it = mapCoinsByScript.begin(); it != mapCoinsByScript.end();) {
-                    BatchWriteCoins(batch, it->first, it->second);
+                    //BatchWriteCoins(batch, it->first, it->second);
+                    if (it->second.IsEmpty())
+                        batch.Erase(make_pair('d', it->first));
+                    else
+                        batch.Write(make_pair('d', it->first), it->second);
                     CCoinsMapByScript::iterator itOld = it++;
                     mapCoinsByScript.erase(itOld);
                 }
@@ -292,9 +313,13 @@ bool CCoinsViewDB::GenerateAllCoinsByScript()
     }
     if (!mapCoinsByScript.empty())
     {
-       CLevelDBBatch batch;
+       CDBBatch batch(db);
        for (CCoinsMapByScript::iterator it = mapCoinsByScript.begin(); it != mapCoinsByScript.end();) {
-           BatchWriteCoins(batch, it->first, it->second);
+           //BatchWriteCoins(batch, it->first, it->second);
+           if (it->second.IsEmpty())
+               batch.Erase(make_pair('d', it->first));
+           else
+               batch.Write(make_pair('d', it->first), it->second);
            CCoinsMapByScript::iterator itOld = it++;
            mapCoinsByScript.erase(itOld);
        }
