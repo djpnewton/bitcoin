@@ -349,7 +349,7 @@ void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee,
 }
 
 CTxMemPool::CTxMemPool(const CFeeRate& _minReasonableRelayFee, const bool& _fTxOutsByAddressIndex) :
-    nTransactionsUpdated(0)
+    nTransactionsUpdated(0),
     fTxOutsByAddressIndex(_fTxOutsByAddressIndex)
 {
     _clear(); //lock free clear
