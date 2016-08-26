@@ -669,6 +669,7 @@ CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& loc
 }
 
 CCoinsViewCache *pcoinsTip = NULL;
+CCoinsViewDB *pcoinsdbview = NULL;
 CCoinsViewByScript *pcoinsByScript = NULL;
 CBlockTreeDB *pblocktree = NULL;
 

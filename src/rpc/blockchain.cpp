@@ -20,6 +20,8 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "hash.h"
+#include "txdb.h"
+#include "dbwrapper.h"
 
 #include <stdint.h>
 
@@ -618,24 +620,9 @@ UniValue getblock(const UniValue& params, bool fHelp)
     return blockToJSON(block, pblockindex);
 }
 
-struct CCoinsStats
-{
-    int nHeight;
-    uint256 hashBlock;
-    uint64_t nTransactions;
-    uint64_t nTransactionOutputs;
-    uint64_t nAddresses;
-    uint64_t nAddressesOutputs; // equal nTransactionOutputs (if addressindex is enabled)
-    uint64_t nSerializedSize;
-    uint256 hashSerialized;
-    CAmount nTotalAmount;
-
-    CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nAddresses(0), nAddressesOutputs(0), nSerializedSize(0), nTotalAmount(0) {}
-};
-
 //! Calculate statistics about the unspent transaction output set
-static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
-{
+bool GetUTXOStats(CCoinsView *view, CCoinsViewDB *viewdb, CCoinsStats &stats)
+{{
     boost::scoped_ptr<CCoinsViewCursor> pcursor(view->Cursor());
 
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
@@ -668,7 +655,15 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
             return error("%s: unable to read value", __func__);
         }
         pcursor->Next();
+    }
+    stats.hashSerialized = ss.GetHash();
+    stats.nTotalAmount = nTotalAmount;
+}
 
+    boost::scoped_ptr<CDBIterator> pcursordb(viewdb->RawCursor());
+    pcursordb->Seek('d');
+    while (pcursordb->Valid()) {
+        boost::this_thread::interruption_point();
 /* from txdb.cpp
 
             if (chType == 'd') {
@@ -681,11 +676,16 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
                 stats.nAddressesOutputs += coinsByScript.setCoins.size();
             }
 */
-
-
+        std::pair<char, uint160> key;
+        CCoinsByScript coinsByScript;
+        if (pcursordb->GetKey(key) && key.first != 'd' && pcursordb->GetValue(coinsByScript)) {
+            stats.nAddresses++;
+            stats.nAddressesOutputs += coinsByScript.setCoins.size();
+        } else {
+            return error("%s: unable to read value", __func__);
+        }
+        pcursordb->Next();
     }
-    stats.hashSerialized = ss.GetHash();
-    stats.nTotalAmount = nTotalAmount;
     return true;
 }
 
@@ -717,7 +717,7 @@ UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
 
     CCoinsStats stats;
     FlushStateToDisk();
-    if (GetUTXOStats(pcoinsTip, stats)) {
+    if (GetUTXOStats(pcoinsTip, pcoinsdbview, stats)) {
         ret.push_back(Pair("height", (int64_t)stats.nHeight));
         ret.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
         ret.push_back(Pair("transactions", (int64_t)stats.nTransactions));

@@ -160,7 +160,6 @@ public:
     // Writes do not need similar protection, as failure to write is handled by the caller.
 };
 
-static CCoinsViewDB *pcoinsdbview = NULL;
 static CCoinsViewErrorCatcher *pcoinscatcher = NULL;
 static boost::scoped_ptr<ECCVerifyHandle> globalVerifyHandle;
 
@@ -1370,11 +1369,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                                 strLoadError = _("Error building txoutsbyaddressindex");
                                 break;
                             }
-                            /* TODO: no header
                             CCoinsStats stats;
-                            if (!GetUTXOStats(pcoinsdbview, stats))
+                            if (!GetUTXOStats(pcoinsTip, pcoinsdbview, stats))
                             {
-                                strLoadError = _("Error GetStats for txoutsbyaddressindex");
+                                strLoadError = _("Error GetUTXOStats for txoutsbyaddressindex");
                                 break;
                             }
                             if (stats.nTransactionOutputs != stats.nAddressesOutputs)
@@ -1382,7 +1380,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                                 strLoadError = _("Error compare stats for txoutsbyaddressindex");
                                 break;
                             }
-                            */
                             pcoinsdbview->WriteFlag("txoutsbyaddressindex", true);
                             fTxOutsByAddressIndex = true;
                         }

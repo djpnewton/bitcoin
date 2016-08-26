@@ -126,6 +126,11 @@ bool CBlockTreeDB::ReadLastBlockFile(int &nFile) {
     return Read(DB_LAST_BLOCK, nFile);
 }
 
+CDBWrapper *CCoinsViewDB::RawCursor() const
+{
+    return const_cast<CDBWrapper*>(&db)->NewIterator();
+}
+
 CCoinsViewCursor *CCoinsViewDB::Cursor() const
 {
     CCoinsViewDBCursor *i = new CCoinsViewDBCursor(const_cast<CDBWrapper*>(&db)->NewIterator(), GetBestBlock());
@@ -172,7 +177,7 @@ void CCoinsViewDBCursor::Next()
 
 int64_t CCoinsViewDB::GetPrefixCount(char prefix) const
 {
-    boost::scoped_ptr<CDBIterator> pcursor(const_cast<CDBWrapper*>(&db)->NewIterator());
+    boost::scoped_ptr<CDBIterator> pcursor(RawCursor());
     pcursor->Seek(prefix);
 
     int64_t i = 0;
@@ -193,7 +198,7 @@ int64_t CCoinsViewDB::GetPrefixCount(char prefix) const
 
 bool CCoinsViewDB::DeleteAllCoinsByScript()
 {
-    boost::scoped_ptr<CDBIterator> pcursor(const_cast<CDBWrapper*>(&db)->NewIterator());
+    boost::scoped_ptr<CDBIterator> pcursor(RawCursor());
     pcursor->Seek('d');
 
     std::vector<uint160> v;
@@ -253,7 +258,7 @@ bool CCoinsViewDB::GenerateAllCoinsByScript()
     LogPrintf("Building address index for -txoutsbyaddressindex. Be patient...\n");
     int64_t nTxCount = GetPrefixCount('c');
 
-    boost::scoped_ptr<CDBIterator> pcursor(const_cast<CDBWrapper*>(&db)->NewIterator());
+    boost::scoped_ptr<CDBIterator> pcursor(RawCursor());
     pcursor->Seek('c');
 
     CCoinsMapByScript mapCoinsByScript;
