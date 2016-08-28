@@ -83,7 +83,7 @@ public:
     bool DeleteAllCoinsByScript();   // removes txoutsbyaddressindex
     bool GenerateAllCoinsByScript(); // creates txoutsbyaddressindex
     void SetCoinsViewByScript(CCoinsViewByScript* pcoinsViewByScriptIn);
-    CDBWrapper *RawCursor() const;
+    CDBIterator *RawCursor() const;
     CCoinsViewCursor *Cursor() const;
 };
 

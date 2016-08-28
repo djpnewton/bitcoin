@@ -664,21 +664,9 @@ bool GetUTXOStats(CCoinsView *view, CCoinsViewDB *viewdb, CCoinsStats &stats)
     pcursordb->Seek('d');
     while (pcursordb->Valid()) {
         boost::this_thread::interruption_point();
-/* from txdb.cpp
-
-            if (chType == 'd') {
-                progress++;
-                leveldb::Slice slValue = pcursor->value();
-                CDataStream ssValue(slValue.data(), slValue.data()+slValue.size(), SER_DISK, CLIENT_VERSION);
-                CCoinsByScript coinsByScript;
-                ssValue >> coinsByScript;
-                stats.nAddresses++;
-                stats.nAddressesOutputs += coinsByScript.setCoins.size();
-            }
-*/
         std::pair<char, uint160> key;
         CCoinsByScript coinsByScript;
-        if (pcursordb->GetKey(key) && key.first != 'd' && pcursordb->GetValue(coinsByScript)) {
+        if (pcursordb->GetKey(key) && key.first == 'd' && pcursordb->GetValue(coinsByScript)) {
             stats.nAddresses++;
             stats.nAddressesOutputs += coinsByScript.setCoins.size();
         } else {

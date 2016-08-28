@@ -126,7 +126,7 @@ bool CBlockTreeDB::ReadLastBlockFile(int &nFile) {
     return Read(DB_LAST_BLOCK, nFile);
 }
 
-CDBWrapper *CCoinsViewDB::RawCursor() const
+CDBIterator *CCoinsViewDB::RawCursor() const
 {
     return const_cast<CDBWrapper*>(&db)->NewIterator();
 }
