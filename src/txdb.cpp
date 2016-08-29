@@ -206,23 +206,9 @@ bool CCoinsViewDB::DeleteAllCoinsByScript()
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         try {
-            /* old
-            leveldb::Slice slKey = pcursor->key();
-            CDataStream ssKey(slKey.data(), slKey.data()+slKey.size(), SER_DISK, CLIENT_VERSION);
-            char chType;
-            ssKey >> chType;
-            if (chType != 'd')
-                break;
-            */
             std::pair<char, uint160> key;
             if (!pcursor->GetKey(key) || key.first != 'd')
                 break;
-
-            /* old
-            uint160 scripthash;
-            ssKey >> scripthash;            
-            v.push_back(scripthash);
-            */
             v.push_back(key.second);
             if (v.size() >= 10000)
             {
@@ -299,7 +285,6 @@ bool CCoinsViewDB::GenerateAllCoinsByScript()
             {
                 CDBBatch batch(db);
                 for (CCoinsMapByScript::iterator it = mapCoinsByScript.begin(); it != mapCoinsByScript.end();) {
-                    //BatchWriteCoins(batch, it->first, it->second);
                     if (it->second.IsEmpty())
                         batch.Erase(make_pair('d', it->first));
                     else
@@ -320,7 +305,6 @@ bool CCoinsViewDB::GenerateAllCoinsByScript()
     {
        CDBBatch batch(db);
        for (CCoinsMapByScript::iterator it = mapCoinsByScript.begin(); it != mapCoinsByScript.end();) {
-           //BatchWriteCoins(batch, it->first, it->second);
            if (it->second.IsEmpty())
                batch.Erase(make_pair('d', it->first));
            else

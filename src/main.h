@@ -557,26 +557,4 @@ static const unsigned int REJECT_ALREADY_KNOWN = 0x101;
 /** Transaction conflicts with a transaction already known */
 static const unsigned int REJECT_CONFLICT = 0x102;
 
-
-
-/** TODO: Figure out where to put this!!! */
-struct CCoinsStats
-{
-    int nHeight;
-    uint256 hashBlock;
-    uint64_t nTransactions;
-    uint64_t nTransactionOutputs;
-    uint64_t nAddresses;
-    uint64_t nAddressesOutputs; // equal nTransactionOutputs (if addressindex is enabled)
-    uint64_t nSerializedSize;
-    uint256 hashSerialized;
-    CAmount nTotalAmount;
-
-    CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nAddresses(0), nAddressesOutputs(0), nSerializedSize(0), nTotalAmount(0) {}
-};
-
-bool GetUTXOStats(CCoinsView *view, CCoinsViewDB *viewdb, CCoinsStats &stats);
-
-
-
 #endif // BITCOIN_MAIN_H
