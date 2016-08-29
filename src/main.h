@@ -523,9 +523,10 @@ extern CChain chainActive;
 extern CCoinsViewCache *pcoinsTip;
 
 /** Global variable that points to the active CCoinsView (protected by cs_main) */
-extern CCoinsViewDB *pcoinsdbview;
+extern CCoinsViewDB *pcoinsdbview; //DN: TODO: remove this
 
 /** Only used if -txoutsbyaddressindex */
+extern CCoinsViewByScriptDB *pcoinsByScriptDB;
 extern CCoinsViewByScript *pcoinsByScript;
 
 /** Global variable that points to the active block tree (protected by cs_main) */

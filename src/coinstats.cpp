@@ -11,8 +11,11 @@
 
 using namespace std;
 
+//DN:TODO get rid of this
+static const char DB_COINS_BYSCRIPT = 'd';
+
 //! Calculate statistics about the unspent transaction output set
-bool GetUTXOStats(CCoinsView *view, CCoinsViewDB *viewdb, CCoinsStats &stats)
+bool GetUTXOStats(CCoinsView *view, CCoinsViewByScriptDB *viewbyscriptdb, CCoinsStats &stats)
 {
     boost::scoped_ptr<CCoinsViewCursor> pcursor(view->Cursor());
 
@@ -50,13 +53,13 @@ bool GetUTXOStats(CCoinsView *view, CCoinsViewDB *viewdb, CCoinsStats &stats)
     stats.hashSerialized = ss.GetHash();
     stats.nTotalAmount = nTotalAmount;
 
-    boost::scoped_ptr<CDBIterator> pcursordb(viewdb->RawCursor());
-    pcursordb->Seek('d');
+    boost::scoped_ptr<CDBIterator> pcursordb(viewbyscriptdb->RawCursor());
+    pcursordb->Seek(DB_COINS_BYSCRIPT);
     while (pcursordb->Valid()) {
         boost::this_thread::interruption_point();
         std::pair<char, uint160> key;
         CCoinsByScript coinsByScript;
-        if (pcursordb->GetKey(key) && key.first == 'd' && pcursordb->GetValue(coinsByScript)) {
+        if (pcursordb->GetKey(key) && key.first == DB_COINS_BYSCRIPT && pcursordb->GetValue(coinsByScript)) {
             stats.nAddresses++;
             stats.nAddressesOutputs += coinsByScript.setCoins.size();
         } else {
