@@ -63,21 +63,6 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) {
         CCoinsMap::iterator itOld = it++;
         mapCoins.erase(itOld);
     }
-
-    //DN:TODO: put this somewhere
-    if (pcoinsViewByScript) // only if -txoutsbyaddressindex
-    {
-        for (CCoinsMapByScript::iterator it = pcoinsViewByScript->cacheCoinsByScript.begin(); it != pcoinsViewByScript->cacheCoinsByScript.end();) {
-            if (it->second.IsEmpty())
-                batch.Erase(make_pair(DB_COINS_BYSCRIPT, it->first));
-            else
-                batch.Write(make_pair(DB_COINS_BYSCRIPT, it->first), it->second);
-            CCoinsMapByScript::iterator itOld = it++;
-            pcoinsViewByScript->cacheCoinsByScript.erase(itOld);
-        }
-        pcoinsViewByScript->cacheCoinsByScript.clear();
-    }
-
     if (!hashBlock.IsNull())
         batch.Write(DB_BEST_BLOCK, hashBlock);
 

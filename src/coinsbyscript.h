@@ -47,8 +47,10 @@ class CCoinsViewByScript
 private:
     CCoinsViewByScriptDB *base;
 
+    mutable uint256 hashBlock;
+
 public:
-    CCoinsMapByScript cacheCoinsByScript; // accessed also from CCoinsViewDB in txdb.cpp DN:TODO not for long
+    CCoinsMapByScript cacheCoinsByScript; // accessed also from CCoinsViewByScriptDB
     CCoinsViewByScript(CCoinsViewByScriptDB* baseIn);
 
     bool GetCoinsByScript(const CScript &script, CCoinsByScript &coins);
@@ -57,6 +59,16 @@ public:
     CCoinsByScript &GetCoinsByScript(const CScript &script, bool fRequireExisting = true);
 
     static uint160 getKey(const CScript &script); // we use the hash of the script as key in the database
+
+    void SetBestBlock(const uint256 &hashBlock);
+    uint256 GetBestBlock() const;
+
+    /**
+     * Push the modifications applied to this cache to its base.
+     * Failure to call this method before destruction will cause the changes to be forgotten.
+     * If false is returned, the state of this cache (and its backing view) will be undefined.
+     */
+    bool Flush();
 
 private:
     CCoinsMapByScript::iterator FetchCoinsByScript(const CScript &script, bool fRequireExisting);
@@ -81,6 +93,7 @@ public:
 
     //! Get best block at the time this cursor was created
     const uint256 &GetBestBlock() const { return hashBlock; } //DN: needed?
+
 private:
     uint256 hashBlock;
 };
@@ -90,20 +103,17 @@ private:
 /** CCoinsViewByScript backed by the coinsbyscript database (coinsbyscript/) */
 class CCoinsViewByScriptDB 
 {
-private:
-    CCoinsViewByScript* pcoinsViewByScript;
 protected:
     CDBWrapper db;
 public:
     CCoinsViewByScriptDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
 
     bool GetCoinsByHashOfScript(const uint160 &hash, CCoinsByScript &coins) const;
-    bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock);
+    bool BatchWrite(CCoinsViewByScript* pcoinsViewByScriptIn, const uint256 &hashBlock);
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
     bool DeleteAllCoinsByScript();   // removes txoutsbyaddressindex
     bool GenerateAllCoinsByScript(CCoinsViewDB* coinsIn); // creates txoutsbyaddressindex
-    void SetCoinsViewByScript(CCoinsViewByScript* pcoinsViewByScriptIn);
     CDBIterator *RawCursor() const;
     //DN:TODO
     //CCoinsViewByScriptDBCursor *Cursor() const;

@@ -1404,10 +1404,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                 // Init -txoutsbyaddressindex
                 if (fTxOutsByAddressIndex)
-                {
                     pcoinsByScript = new CCoinsViewByScript(pcoinsByScriptDB);
-                    pcoinsByScriptDB->SetCoinsViewByScript(pcoinsByScript);
-                }
 
                 uiInterface.InitMessage(_("Verifying blocks..."));
                 if (fHavePruned && GetArg("-checkblocks", DEFAULT_CHECKBLOCKS) > MIN_BLOCKS_TO_KEEP) {

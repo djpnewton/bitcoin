@@ -15,6 +15,7 @@ using namespace std;
 
 static const char DB_COINS_BYSCRIPT = 'd';
 static const char DB_FLAG = 'F';
+static const char DB_BEST_BLOCK = 'B'; //DN: TODO: repeated
 
 CCoinsViewByScript::CCoinsViewByScript(CCoinsViewByScriptDB* viewIn) : base(viewIn) { }
 
@@ -57,17 +58,46 @@ uint160 CCoinsViewByScript::getKey(const CScript &script) {
     return Hash160(script);
 }
 
-CCoinsViewByScriptDB::CCoinsViewByScriptDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "coinsbyscript", nCacheSize, fMemory, fWipe, true)
-{
-    pcoinsViewByScript = NULL;
+uint256 CCoinsViewByScript::GetBestBlock() const {
+    return hashBlock;
 }
 
-void CCoinsViewByScriptDB::SetCoinsViewByScript(CCoinsViewByScript* pcoinsViewByScriptIn) {
-    pcoinsViewByScript = pcoinsViewByScriptIn;
+void CCoinsViewByScript::SetBestBlock(const uint256 &hashBlockIn) {
+    hashBlock = hashBlockIn;
+}
+
+bool CCoinsViewByScript::Flush() {
+    bool fOk = base->BatchWrite(this, hashBlock);
+    return fOk;
+}
+
+CCoinsViewByScriptDB::CCoinsViewByScriptDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "coinsbyscript", nCacheSize, fMemory, fWipe, true)
+{
 }
 
 bool CCoinsViewByScriptDB::GetCoinsByHashOfScript(const uint160 &hash, CCoinsByScript &coins) const {
     return db.Read(make_pair(DB_COINS_BYSCRIPT, hash), coins);
+}
+
+bool CCoinsViewByScriptDB::BatchWrite(CCoinsViewByScript* pcoinsViewByScriptIn, const uint256 &hashBlock) {
+    CDBBatch batch(db);
+    size_t count = 0;
+    for (CCoinsMapByScript::iterator it = pcoinsViewByScriptIn->cacheCoinsByScript.begin(); it != pcoinsViewByScriptIn->cacheCoinsByScript.end();) {
+        if (it->second.IsEmpty())
+            batch.Erase(make_pair(DB_COINS_BYSCRIPT, it->first));
+        else
+            batch.Write(make_pair(DB_COINS_BYSCRIPT, it->first), it->second);
+        CCoinsMapByScript::iterator itOld = it++;
+        pcoinsViewByScriptIn->cacheCoinsByScript.erase(itOld);
+        count++;
+    }
+    pcoinsViewByScriptIn->cacheCoinsByScript.clear();
+
+    if (!hashBlock.IsNull())
+        batch.Write(DB_BEST_BLOCK, hashBlock);
+
+    LogPrint("coindb", "Committing %u coin address indexes to coin database...\n", (unsigned int)count);
+    return db.WriteBatch(batch);
 }
 
 bool CCoinsViewByScriptDB::WriteFlag(const std::string &name, bool fValue) {
@@ -82,7 +112,7 @@ bool CCoinsViewByScriptDB::ReadFlag(const std::string &name, bool &fValue) {
     return true;
 }
 
-CDBIterator *CCoinsViewDB::RawCursor() const
+CDBIterator *CCoinsViewByScriptDB::RawCursor() const
 {
     return const_cast<CDBWrapper*>(&db)->NewIterator();
 }
