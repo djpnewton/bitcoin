@@ -112,16 +112,9 @@ bool CCoinsViewByScriptDB::ReadFlag(const std::string &name, bool &fValue) {
     return true;
 }
 
-CDBIterator *CCoinsViewByScriptDB::RawCursor() const
-{
-    return const_cast<CDBWrapper*>(&db)->NewIterator();
-}
-
-//DN: TODO
-#ifdef BLAH
 CCoinsViewByScriptDBCursor *CCoinsViewByScriptDB::Cursor() const
 {
-    CCoinsViewDBCursor *i = new CCoinsViewByScriptDBCursor(const_cast<CDBWrapper*>(&db)->NewIterator(), GetBestBlock());
+    CCoinsViewByScriptDBCursor *i = new CCoinsViewByScriptDBCursor(const_cast<CDBWrapper*>(&db)->NewIterator());
     /* It seems that there are no "const iterators" for LevelDB.  Since we
        only need read operations on it, use a const-cast to get around
        that restriction.  */
@@ -130,22 +123,52 @@ CCoinsViewByScriptDBCursor *CCoinsViewByScriptDB::Cursor() const
     i->pcursor->GetKey(i->keyTmp);
     return i;
 }
-#endif
+
+bool CCoinsViewByScriptDBCursor::GetKey(uint160 &key) const
+{
+    // Return cached key
+    if (keyTmp.first == DB_COINS_BYSCRIPT) {
+        key = keyTmp.second;
+        return true;
+    }
+    return false;
+}
+
+bool CCoinsViewByScriptDBCursor::GetValue(CCoinsByScript &coins) const
+{
+    return pcursor->GetValue(coins);
+}
+
+unsigned int CCoinsViewByScriptDBCursor::GetValueSize() const
+{
+    return pcursor->GetValueSize();
+}
+
+bool CCoinsViewByScriptDBCursor::Valid() const
+{
+    return keyTmp.first == DB_COINS_BYSCRIPT;
+}
+
+void CCoinsViewByScriptDBCursor::Next()
+{
+    pcursor->Next();
+    if (!pcursor->Valid() || !pcursor->GetKey(keyTmp))
+        keyTmp.first = 0; // Invalidate cached key after last record so that Valid() and GetKey() return false
+}
 
 bool CCoinsViewByScriptDB::DeleteAllCoinsByScript()
 {
-    boost::scoped_ptr<CDBIterator> pcursor(RawCursor());
-    pcursor->Seek(DB_COINS_BYSCRIPT);
+    boost::scoped_ptr<CCoinsViewByScriptDBCursor> pcursor(Cursor());
 
     std::vector<uint160> v;
     int64_t i = 0;
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         try {
-            std::pair<char, uint160> key;
-            if (!pcursor->GetKey(key) || key.first != DB_COINS_BYSCRIPT)
+            uint160 hash;
+            if (!pcursor->GetKey(hash))
                 break;
-            v.push_back(key.second);
+            v.push_back(hash);
             if (v.size() >= 10000)
             {
                 i += v.size();
@@ -178,10 +201,9 @@ bool CCoinsViewByScriptDB::DeleteAllCoinsByScript()
 bool CCoinsViewByScriptDB::GenerateAllCoinsByScript(CCoinsViewDB* coinsIn)
 {
     LogPrintf("Building address index for -txoutsbyaddressindex. Be patient...\n");
-    int64_t nTxCount = coinsIn->GetPrefixCount('c');
+    int64_t nTxCount = coinsIn->CountCoins();
 
-    boost::scoped_ptr<CDBIterator> pcursor(coinsIn->RawCursor());
-    pcursor->Seek('c');
+    boost::scoped_ptr<CCoinsViewCursor> pcursor(coinsIn->Cursor());
 
     CCoinsMapByScript mapCoinsByScript;
     int64_t i = 0;
@@ -193,12 +215,9 @@ bool CCoinsViewByScriptDB::GenerateAllCoinsByScript(CCoinsViewDB* coinsIn)
                 uiInterface.ShowProgress(_("Building address index..."), (int)(((double)progress / (double)nTxCount) * (double)100));
             progress++;
 
-            std::pair<char, uint256> key;
+            uint256 txhash;
             CCoins coins;
-            if (!pcursor->GetKey(key) || key.first != 'c')
-                break;
-            uint256 txhash = key.second;
-            if (!pcursor->GetValue(coins))
+            if (!pcursor->GetKey(txhash) || !pcursor->GetValue(coins))
                 break;
 
             for (unsigned int j = 0; j < coins.vout.size(); j++)

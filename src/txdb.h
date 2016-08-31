@@ -74,8 +74,7 @@ public:
     bool HaveCoins(const uint256 &txid) const;
     uint256 GetBestBlock() const;
     bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock);
-    int64_t GetPrefixCount(char prefix) const;
-    CDBIterator *RawCursor() const;
+    int64_t CountCoins() const;
     CCoinsViewCursor *Cursor() const;
 };
 

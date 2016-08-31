@@ -74,33 +74,30 @@ private:
     CCoinsMapByScript::iterator FetchCoinsByScript(const CScript &script, bool fRequireExisting);
 };
 
-//DN: TODO
-#ifdef blah
-/** Cursor for iterating over CoinsViewByScript state */
-class CCoinsViewByScriptDBCursor
+/** Cursor for iterating over a CCoinsViewByScriptDB */
+class CCoinsViewByScriptDBCursor 
 {
 public:
-    CCoinsViewCursor(const uint256 &hashBlockIn): hashBlock(hashBlockIn) {}
-    virtual ~CCoinsViewByScriptDBCursor();
+    ~CCoinsViewByScriptDBCursor() {}
 
-    virtual bool GetKey(uint160 &key) const = 0;
-    virtual bool GetValue(CCoinsByScript &coins) const = 0;
-    /* Don't care about GetKeySize here */
-    virtual unsigned int GetValueSize() const = 0;
+    bool GetKey(uint160 &key) const;
+    bool GetValue(CCoinsByScript &coins) const;
+    unsigned int GetValueSize() const;
 
-    virtual bool Valid() const = 0;
-    virtual void Next() = 0;
-
-    //! Get best block at the time this cursor was created
-    const uint256 &GetBestBlock() const { return hashBlock; } //DN: needed?
+    bool Valid() const;
+    void Next();
 
 private:
+    CCoinsViewByScriptDBCursor(CDBIterator* pcursorIn):
+        pcursor(pcursorIn) {}
     uint256 hashBlock;
-};
-#endif
+    boost::scoped_ptr<CDBIterator> pcursor;
+    std::pair<char, uint160> keyTmp;
 
-//DN: TODO
-/** CCoinsViewByScript backed by the coinsbyscript database (coinsbyscript/) */
+    friend class CCoinsViewByScriptDB;
+};
+
+/** coinsbyscript database (coinsbyscript/) */
 class CCoinsViewByScriptDB 
 {
 protected:
@@ -114,9 +111,7 @@ public:
     bool ReadFlag(const std::string &name, bool &fValue);
     bool DeleteAllCoinsByScript();   // removes txoutsbyaddressindex
     bool GenerateAllCoinsByScript(CCoinsViewDB* coinsIn); // creates txoutsbyaddressindex
-    CDBIterator *RawCursor() const;
-    //DN:TODO
-    //CCoinsViewByScriptDBCursor *Cursor() const;
+    CCoinsViewByScriptDBCursor *Cursor() const;
 };
 
 #endif // BITCOIN_COINSBYSCRIPT_H

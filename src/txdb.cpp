@@ -137,19 +137,14 @@ void CCoinsViewDBCursor::Next()
         keyTmp.first = 0; // Invalidate cached key after last record so that Valid() and GetKey() return false
 }
 
-//DN: TODO: use CCoinsViewCursor::Count() or something
-int64_t CCoinsViewDB::GetPrefixCount(char prefix) const
+int64_t CCoinsViewDB::CountCoins() const
 {
-    boost::scoped_ptr<CDBIterator> pcursor(RawCursor());
-    pcursor->Seek(prefix);
+    boost::scoped_ptr<CCoinsViewCursor> pcursor(Cursor());
 
     int64_t i = 0;
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         try {
-            char key;
-            if (!pcursor->GetKey(key) || key != prefix)
-                break;
             i++;
             pcursor->Next();
         } catch (std::exception &e) {
@@ -157,12 +152,6 @@ int64_t CCoinsViewDB::GetPrefixCount(char prefix) const
         }
     }
     return i;
-}
-
-//DN: TODO: get rid of this
-CDBIterator *CCoinsViewDB::RawCursor() const
-{
-    return const_cast<CDBWrapper*>(&db)->NewIterator();
 }
 
 bool CBlockTreeDB::WriteBatchSync(const std::vector<std::pair<int, const CBlockFileInfo*> >& fileInfo, int nLastFile, const std::vector<const CBlockIndex*>& blockinfo) {
