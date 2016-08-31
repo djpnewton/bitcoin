@@ -119,8 +119,12 @@ CCoinsViewByScriptDBCursor *CCoinsViewByScriptDB::Cursor() const
        only need read operations on it, use a const-cast to get around
        that restriction.  */
     i->pcursor->Seek(DB_COINS_BYSCRIPT);
-    // Cache key of first record
-    i->pcursor->GetKey(i->keyTmp);
+    if (!i->pcursor->Valid())
+        // If db empty then set this cursor invalid
+        i->keyTmp.first = 0;
+    else
+        // Cache key of first record
+        i->pcursor->GetKey(i->keyTmp);
     return i;
 }
 
