@@ -15,7 +15,7 @@ using namespace std;
 
 static const char DB_COINS_BYSCRIPT = 'd';
 static const char DB_FLAG = 'F';
-static const char DB_BEST_BLOCK = 'B'; //DN: TODO: repeated
+static const char DB_BEST_BLOCK = 'B';
 
 CCoinsViewByScript::CCoinsViewByScript(CCoinsViewByScriptDB* viewIn) : base(viewIn) { }
 
