@@ -18,6 +18,7 @@ BITCOIN_DAEMON_NAME=bitcoind
 BITCOIN_GUI_NAME=bitcoin-qt
 BITCOIN_CLI_NAME=bitcoin-cli
 BITCOIN_TX_NAME=bitcoin-tx
+COININDEX_DAEMON_NAME=coinindexd
 
 AC_CANONICAL_HOST
 
@@ -231,6 +232,12 @@ AC_ARG_WITH([daemon],
   [build bitcoind daemon (default=yes)])],
   [build_bitcoind=$withval],
   [build_bitcoind=yes])
+
+AC_ARG_WITH([coinindex],
+  [AS_HELP_STRING([--with-coinindex],
+  [build coinindex daemon (default=yes)])],
+  [build_coinindexd=$withval],
+  [build_coinindexd=yes])
 
 use_pkgconfig=yes
 case $host in
@@ -581,7 +588,7 @@ BITCOIN_QT_INIT
 dnl sets $bitcoin_enable_qt, $bitcoin_enable_qt_test, $bitcoin_enable_qt_dbus
 BITCOIN_QT_CONFIGURE([$use_pkgconfig], [qt5])
 
-if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench = xnonononono; then
+if test x$build_bitcoin_utils$build_bitcoind$build_coinindexd$bitcoin_enable_qt$use_tests$use_bench = xnononononono; then
     use_boost=no
 else
     use_boost=yes
@@ -880,6 +887,10 @@ AC_MSG_RESULT($build_bitcoind)
 AC_MSG_CHECKING([whether to build utils (bitcoin-cli bitcoin-tx)])
 AM_CONDITIONAL([BUILD_BITCOIN_UTILS], [test x$build_bitcoin_utils = xyes])
 AC_MSG_RESULT($build_bitcoin_utils)
+
+AC_MSG_CHECKING([whether to build coinindexd])
+AM_CONDITIONAL([BUILD_COININDEXD], [test x$build_coinindexd = xyes])
+AC_MSG_RESULT($build_coinindexd)
 
 AC_MSG_CHECKING([whether to build libraries])
 AM_CONDITIONAL([BUILD_BITCOIN_LIBS], [test x$build_bitcoin_libs = xyes])
