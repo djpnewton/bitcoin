@@ -7,6 +7,7 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include "chain.h"
 #include "chainparams.h"
 #include "clientversion.h"
 #include "rpc/server.h"
@@ -122,6 +123,12 @@ bool InitError(const std::string& str)
     return false;
 }
 
+//TODO: from main/init.cpp move to loadblocks.cpp
+boost::filesystem::path GetBlockPosFilename(const CDiskBlockPos &pos, const char *prefix)
+{
+    return GetDataDir() / "blocks" / strprintf("%s%05u.dat", prefix, pos.nFile);
+}
+
 bool Test(boost::thread_group& threadGroup, CScheduler& scheduler)
 {
     // ********************************************************* Step 1: setup
@@ -200,6 +207,16 @@ bool Test(boost::thread_group& threadGroup, CScheduler& scheduler)
 #endif
 
     fprintf(stdout, "\n\nDataDir: %s\n\n", strDataDir.c_str());
+
+    const CChainParams& chainparams = Params();
+    int nFile = 0;
+    while (true) {
+        CDiskBlockPos pos(nFile, 0);
+        if (!boost::filesystem::exists(GetBlockPosFilename(pos, "blk")))
+            break; // No block files left
+        fprintf(stdout, "found block file blk%05u.dat...\n", (unsigned int)nFile);
+        nFile++;
+    }
 
     return !fRequestShutdown;
 }
